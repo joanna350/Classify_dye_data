@@ -312,10 +312,12 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
     logging.info('ROC AUC %.3f' %roc_auc)
     fprs, tprs, thresh = roc_curve(true, pred_prob[:,1])
     plt.plot([0,1],[0,1], 'k--')
-    plt.plot(fprs, tprs)
+    plt.plot(fprs, tprs, color='red',
+            lw=2, label='ROC curve (area=%0.2f)' %roc_auc)
     plt.xlabel('false positive rate')
     plt.ylabel('true positive rate')
-    plt.title('ROC curve')
+    plt.title(string + ' Receiver Operating Characteristic')
+    plt.legend(loc='lower right')
     plt.savefig('plots/'+string+'_ROC_curve.png')
     plt.clf()
     #pr-recall curve
@@ -323,6 +325,7 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
     plt.plot(recs, pres, marker='.', label=string)
     plt.xlabel('recall')
     plt.ylabel('precision')
+    plt.title(string + ' PR curve')
     plt.savefig('plots/'+string+'_pr_curve.png')
     plt.clf()
     if plot_cnf:
@@ -343,15 +346,6 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
         plt.ylabel('Actual label')
         plt.savefig('plots/confusion_matrix.png')
         plt.clf()
-
-''' 
-    # get the roc curve
-    n_classes = 2
-    fpr, tpr, roc_auc  = dict(), dict(), dict()
-    for i in range(n_classes):
-        fpr[i], tpr[i], _ = roc_curve(pred, test_out, pos_label=2)
-        roc_auc[i] = auc(fpr[i], tpr[i])
-'''
 
 def cv(X_t, y_t, X_test, y_test):
     '''
