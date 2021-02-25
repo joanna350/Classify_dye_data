@@ -76,7 +76,7 @@ def preprocess(others):
 			df = pd.merge(left=df, right=y, 
 					left_on=mergemap[category], right_on=mergemap[category])
 
-		logging.info('1 vs 0 in ', string, ': ' sum(df['has.passed']), len(df)-sum(df['has.passed'])) #11276 2474
+		logging.info('1 vs 0 in %s: %s vs %s', string, sum(df['has.passed']), len(df)-sum(df['has.passed'])) #11276 2474
 		logging.info('---------------------preprocessing')  
 	#TODO: automation could be done by filtering cols with only one val and removing
 	# only 1 value (first line) or majority empty (second line) 
@@ -181,7 +181,7 @@ def colourmeasurement(df):
 	#better perf retained
 	#lower perf removing NA 
 	#df.drop(columns = nans39, inplace=True)
-	logging.debug('df that produced raw result', df.shape)
+	logging.debug('df that produced raw result: %s, %s', df.shape[0], df.shape[1])
 	na_free = df.dropna(subset=nans39)
 #    only_na = df[~df.index.isin(na_free.index)]
 #    only_na.to_csv('observe_dropped.csv', index=False)
@@ -197,7 +197,7 @@ def oversample(X, y):
 	logging.info('------------------balancing sample')
 	ros= RandomOverSampler(random_state=0)
 	X_re, y_re = ros.fit_resample(X,y)  
-	logging.info(sum(y_re), len(y_re) - sum(y_re))
+	logging.info('%s, %s',sum(y_re), len(y_re) - sum(y_re))
 	return X_re, y_re
 
 
@@ -216,7 +216,7 @@ def fit(others, train_x, train_y, test_x, test_y):
 		models.append((0, 'k neighbor classifier', KNeighborsClassifier(n_neighbors=3)))
 
 	for flag, string, model in models:
-		logging.info('training model: ', string)
+		logging.info('training model: %s', string)
 
 		if flag: 
 			model.fit(train_x, train_y, early_stopping_rounds = 10, eval_set = [(test_x, test_y)])
@@ -253,7 +253,7 @@ def select_feats(model, X, y, Xt, yt):
 		pred = sel_model.predict(mod_Xt)
 		accuracy, precision, TPR, FPR, FNR = get_evaluation(yt, pred)
 		logging.info('threshold=%.3f, n=%d, \nacc: %.3f, prec: %.3f, tpr: %.3f, fpr: %.3f, fnr: %.3f'\
-			   						%(thres, mod_X.shape[1], accuracy, precision, TPR, FPR, FNR))
+									%(thres, mod_X.shape[1], accuracy, precision, TPR, FPR, FNR))
 		logging.info('average: %.3f' %((accuracy + precision + TPR + (1-FPR))/4))
 
 
@@ -289,8 +289,7 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
 	tpr =  TP/(TP+FN)
 	fpr = FP/(FP+TN)
 	fnr = FN/(FN+TN)
-	logging.info('accuracy: {:.3f}\nprecision: {:.3f}\ntrue positive rate: {:.3f}\n \
-		false positive rate: {:.3f}\nfalse negative rate: {:.3f}'.format(accu, prec, tpr, fpr, fnr))
+	logging.info('accuracy: {:.3f}\nprecision: {:.3f}\ntrue positive rate: {:.3f}\nfalse positive rate: {:.3f}\nfalse negative rate: {:.3f}'.format(accu, prec, tpr, fpr, fnr))
 	#roc
 	roc_auc= roc_auc_score(true, pred_prob[:,1])
 	logging.info('ROC AUC %.3f' %roc_auc)
@@ -354,8 +353,7 @@ def cv(X_t, y_t, X_test, y_test):
 			  num_boost_round=numbr,
 			  evals=[(dtest,'Test')],
 			  early_stopping_rounds=10)
-	logging.info('best auc: {:.2f} with {} rounds'.format(model.best_score, \
-															model.best_iteration+1))
+	logging.info('best auc: {:.2f} with {} rounds'.format(model.best_score, model.best_iteration+1))
 	results = xgb.cv(params,    
 				 dtrain,
 				 num_boost_round=numbr,
@@ -380,15 +378,16 @@ def execute():
 	'''
 	plot_cnf, gridsearch, others = argparser()
 
+	logging.getLogger().setLevel(logging.INFO)
 	X, y = preprocess(others)
 	X, y = oversample(X, y)
-	X_t, X_test, y_t, y_test = train_test_split(others, X, y, test_size= 0.25, random_state = 0)
+	X_t, X_test, y_t, y_test = train_test_split(X, y, test_size= 0.25, random_state = 0)
 	if gridsearch:
 		cv(X_t, y_t, X_test, y_test)   
 	else:
 		models = fit(others, X_t, y_t, X_test, y_test)
 		for flag, string, model in models:
-			logging.info('model in point: ', string)
+			logging.info('model in point: %s', string)
 			y_pred, pred_prob = get_prediction(model, X_test)
 			get_evaluation(string, y_test, y_pred, pred_prob, plot_cnf)
 

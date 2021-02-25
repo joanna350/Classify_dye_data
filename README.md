@@ -2,7 +2,7 @@
 
 ## To Run
 
-##### Command Line Interface
+#### Command Line Interface
 
 ```
 # For description
@@ -16,7 +16,7 @@ python_v __scriptname__ arg1 arg2 arg3'
 * `others`: arg3 (default 1)
 
 
-##### Directory structure
+#### Directory structure
 ```
 |-- Model
 |   |-- Readme.md
