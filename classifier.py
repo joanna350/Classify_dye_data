@@ -45,10 +45,7 @@ import logging
 
 def argparser():
 	'''
-	accepts positional argument for setting based operation 
-	'python3 __scriptname -h' will show description
-	'python3 __scriptname__ arg_for_plot_cnf arg_for_gridsearch arg_for_others'
-	otherwise run with default values
+	accepts positional argument for setting based operation, ow run with default values
 	:rtype: Bool: deciding to plot cnf / conduct gridesearch / run other models
 	'''
 	parser =ArgumentParser()
@@ -211,16 +208,11 @@ def fit(others, train_x, train_y, test_x, test_y):
 	:rtype List[tup] models: each tuple consisting of Bool flag (xgboost or not), Str (model name), Model instance (trained)
 	'''
 	models = []
-	models.append((1,'xgbclassifier', XGBClassifier(objective='binary:logistic',
-													eval_metric='auc')))
+	models.append((1,'xgbclassifier', XGBClassifier(objective='binary:logistic', eval_metric='auc')))
 	if others:
-		models.append((0, 'logistic regression', LogisticRegression(penalty='l1',
-																solver='liblinear',
-																C=10.0,
-																random_state=0)))
+		models.append((0, 'logistic regression', LogisticRegression(penalty='l1', solver='liblinear', C=10.0, random_state=0)))
 		models.append((0, 'gaussian naive bayes', GaussianNB()))
-		models.append((0, 'random forest classifier', RandomForestClassifier(max_depth=2, 
-																		random_state=0)))
+		models.append((0, 'random forest classifier', RandomForestClassifier(max_depth=2, random_state=0)))
 		models.append((0, 'k neighbor classifier', KNeighborsClassifier(n_neighbors=3)))
 
 	for flag, string, model in models:
@@ -232,10 +224,7 @@ def fit(others, train_x, train_y, test_x, test_y):
 			ax.figure.tight_layout()
 			ax.figure.savefig('xgb_plot_importance.png') 
 			#dpi=fig.dpi
-			plot_tree(model,
-					num_trees= model.best_iteration,
-					rankdir='LR',
-					ax = ax)
+			plot_tree(model, num_trees= model.best_iteration, rankdir='LR', ax = ax)
 		else: 
 			model.fit(train_x, train_y)
 
@@ -365,8 +354,8 @@ def cv(X_t, y_t, X_test, y_test):
 			  num_boost_round=numbr,
 			  evals=[(dtest,'Test')],
 			  early_stopping_rounds=10)
-	logging.info('best auc: {:.2f} with {} rounds'.format(model.best_score, 
-												model.best_iteration+1))
+	logging.info('best auc: {:.2f} with {} rounds'.format(model.best_score, \
+															model.best_iteration+1))
 	results = xgb.cv(params,    
 				 dtrain,
 				 num_boost_round=numbr,
@@ -393,9 +382,7 @@ def execute():
 
 	X, y = preprocess(others)
 	X, y = oversample(X, y)
-	X_t, X_test, y_t, y_test = train_test_split(others, X, y,
-												test_size= 0.25,
-												random_state = 0)
+	X_t, X_test, y_t, y_test = train_test_split(others, X, y, test_size= 0.25, random_state = 0)
 	if gridsearch:
 		cv(X_t, y_t, X_test, y_test)   
 	else:
