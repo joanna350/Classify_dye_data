@@ -12,6 +12,7 @@ from xgboost import DMatrix
 from xgboost import XGBClassifier
 from xgboost import plot_importance
 from xgboost import plot_tree
+from matplotlib import rcParams
 import matplotlib.pyplot as plt
 import seaborn as sns
 from imblearn.over_sampling import RandomOverSampler
@@ -162,7 +163,7 @@ def preprocess(others, category):
 #keep batch.id <> index match, unless keeping batch.id in training retains perf
     if others:
         df = df.dropna() # results in 13596, 47 for training
-    
+    logging.info(df.dtypes) 
     logging.info(df.shape)
     cols = list(df.columns)
     if category == 0:
@@ -179,24 +180,21 @@ def preprocess(others, category):
         train_x = mm_scaler.fit_transform(train_x)
         #if category: # not testing over other models.
            # test_x = mm_scaler.transform(test_x)
-    return train_x, train_y
+    return cols, train_x, train_y
 
 
 def colourmeasurement(df):
     '''
-    purposed to test the impact of the 8 column features that had equivalent number of missing rows
+    purposed to test the impact of the 8 column features that had equivalent number of missing rows > better to retain for performance
     :type dataframe: 
     :rtype dataframe: returned after removing NA rows as designed
     '''
     nans39 = ['L.value','A.value','B.value','chroma.value','hue.value',\
                 'delta.l','delta.c','delta.h','max.colour.difference']
-    #better perf retained
-    #lower perf removing NA 
-    #df.drop(columns = nans39, inplace=True)
     logging.debug('df that produced raw result: %s, %s', df.shape[0], df.shape[1])
     na_free = df.dropna(subset=nans39)
-#    only_na = df[~df.index.isin(na_free.index)]
-#    only_na.to_csv('observe_dropped.csv', index=False)
+    only_na = df[~df.index.isin(na_free.index)]
+    only_na.to_csv('observe_dropped.csv', index=False)
     return na_free
 
 def oversample(X, y):
@@ -213,7 +211,7 @@ def oversample(X, y):
     return X_re, y_re
 
 
-def fit(others, train_x, train_y, test_x, test_y):
+def fit(others, cols, train_x, train_y, test_x, test_y):
     '''
     :type Bool others: decides to train other models or not
     :type dataframes: to fit into each model
@@ -231,7 +229,10 @@ def fit(others, train_x, train_y, test_x, test_y):
         logging.info('training model: %s', string)
         if flag: 
             model.fit(train_x, train_y, early_stopping_rounds = 10, eval_set = [(test_x, test_y)])
-            ax =plot_importance(model)
+            ax = plot_importance(model)
+            txt_yticklabels = list(ax.get_yticklabels())
+            _yticklabels = [txt_yticklabels[i].get_text() for i in range(len(txt_yticklabels))]
+            ax.set_yticklabels(_yticklabels)
             ax.figure.tight_layout()
             ax.figure.savefig('plots/xgb_plot_importance.png') 
             plt.clf()
@@ -239,13 +240,24 @@ def fit(others, train_x, train_y, test_x, test_y):
             model.fit(train_x, train_y)
     return models
 
-            
-def user_plot_importance(model, cols):
+def feature_importance_plot(model, cols): 
     '''
-    [legacy] use after splitting data (not for evaluator)
+    legacy. tested and plotted for personal use
+    :type model: xgboost (possible for all decision tree based models)
+    :type List[Str] cols: features
     '''
-    pass
+    tups = sorted(list(zip(model.feature_importances_, cols)), reverse=True) 
+    rcParams.update({'figure.autolayout': True})
+    fig, ax = plt.subplots()
+    barsize, padding =1/4, 1/4
+    y_locs = np.arange(len(cols)) * (barsize + padding)
+    ax.barh(y_locs, [i[0] for i in tups], align ='center', height = barsize, color='r')
+    ax.set(yticks=np.arange(len(cols)), yticklabels=[i[1] for i in tups], ylim =[0-padding,len(cols)])
+    ax.invert_yaxis()
+    ax.set_xlabel('feature importance')
+    fig.savefig('plots/temp_bar.png')
 
+            
 def select_feats(model, X, y, Xt, yt):
     '''
     legacy now, already done for the evaluators
@@ -320,7 +332,7 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
     plt.legend(loc='lower right')
     plt.savefig('plots/'+string+'_ROC_curve.png')
     plt.clf()
-    #pr-recall curve
+    #pr-recall curve - although I balanced the data
     pres, recs, _ = precision_recall_curve(true, pred_prob[:,1])    
     plt.plot(recs, pres, marker='.', label=string)
     plt.xlabel('recall')
@@ -390,13 +402,13 @@ def execute():
     '''
     logging.getLogger().setLevel(logging.INFO)
     plot_cnf, gridsearch, others = argparser()
-    X, y = preprocess(others, 0)
+    cols, X, y = preprocess(others, 0)
     X, y = oversample(X, y)
     X_t, X_val, y_t, y_val = train_test_split(X, y, test_size= 0.25, random_state = 0)
     if gridsearch:
         cv(X_t, y_t, X_val, y_val) 
     else:
-        models = fit(others, X_t, y_t, X_val, y_val)
+        models = fit(others, cols, X_t, y_t, X_val, y_val)
         for flag, string, model in models:
             logging.info('model in point: %s', string)
             y_pred, pred_prob = get_prediction(model, X_val)

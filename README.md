@@ -28,22 +28,22 @@ python(version) -m pip(v) install --user -Iv '__package_name__==__version__'
 
 ### Command Line Interface
 
-* `./run.sh` would prepare the directory structure for operation as below
+* `./run.sh` prepares the directory structure for operation
 
 * To test the models:
 ```
 # For description
-python_v __scriptname -h
+python_v classifier.py -h
 
 # For operation
-python_v __scriptname__ arg1 arg2 arg3'
+python_v classifier.py arg1 arg2 arg3'
 ```
-* `plot_cnf`: arg1 (default 0) decides the plot of confusion matrix
+* `plot_cnf`: arg1 (default 0) determines the plot of confusion matrix
 * `gridsearch`: arg2 (default 0) for hyperparameter tuning
 * `others`: arg3 (default 0) to run other models
-* It will only return `test.template.csv` when others == 0
+* Returns `test.template.csv` only when `others` == 0
 
-### Directory structure (run default)
+### Directory structure (e.g. run default)
 
 ```
 |-- Model
@@ -57,8 +57,8 @@ python_v __scriptname__ arg1 arg2 arg3'
 |   |-- utility.py
 |   |-- classifier.py
 |   |-- test.template.csv
-|---|-- plots
+|   |-- plots
 |   |   |--xgb_plot_importance.png
 |   |   |--xgbclassifier_pr_curve.png
-|   |   |--xgbclassifier_ROC_curve.png
+		`--xgbclassifier_ROC_curve.png
 ```
