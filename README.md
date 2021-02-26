@@ -60,5 +60,5 @@ python_v classifier.py arg1 arg2 arg3'
 |   |-- plots
 |   |   |--xgb_plot_importance.png
 |   |   |--xgbclassifier_pr_curve.png
-		`--xgbclassifier_ROC_curve.png
+|   |   `--xgbclassifier_ROC_curve.png
 ```
