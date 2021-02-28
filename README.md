@@ -44,8 +44,8 @@ python_v classifier.py arg1 arg2 arg3'
 * `others`: arg3 (default 0) to run other models
 * Returns `test.template.csv` on the same directory only when `others` == 0 (based on xgbclassifier)
 
-* Returns `finetuned.model` on the same directory with `gridsearch` == 1
-* Returns `test.template.csv` under a directory with the current timestamp with `gridsearch` == 1 if `finetuned.model` is already saved
+* Returns `finetuned.booster` on the same directory with `gridsearch` == 1
+* Returns `test.template.csv` under a directory with the current timestamp with `gridsearch` == 1 if `finetuned.booster` is already saved
 
 ### Directory structure 
 

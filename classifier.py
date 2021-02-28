@@ -229,13 +229,11 @@ def fit(others, cols, train_x, train_y, test_x, test_y):
     for flag, string, model in models:
         logging.info('training model: %s', string)
         if flag: 
+            print(cols)
             model.fit(train_x, train_y, early_stopping_rounds = 10, eval_set = [(test_x, test_y)])
-            ax = plot_importance(model)
-            txt_yticklabels = list(ax.get_yticklabels())
-            _yticklabels = [txt_yticklabels[i].get_text() for i in range(len(txt_yticklabels))]
-            ax.set_yticklabels(_yticklabels)
-            ax.figure.tight_layout()
-            ax.figure.savefig('plots/xgb_plot_importance.png') 
+            plot_importance_w_featname(string, cols, model)
+            import sys
+            sys.exit()
             plt.clf()
         else: 
             model.fit(train_x, train_y)
@@ -257,7 +255,7 @@ def feature_importance_plot(model, cols):
     ax.invert_yaxis()
     ax.set_xlabel('feature importance')
     fig.savefig('plots/temp_bar.png')
-
+    plt.clf()
             
 def select_feats(model, X, y, Xt, yt):
     '''
@@ -421,6 +419,23 @@ def cv(X_t, y_t, X_test, y_test):
     logging.info('best params: {}, {}, AUC: {}'.format(best_params[0], best_params[1], max_auc))
    ''' 
     
+def plot_importance_w_featname(string, cols, model):
+    '''
+    :type string: description of the given model
+    :type cols: column(features) names to map when the data lost the info
+    :type model: decision tree based models whose features will be plotted by importance
+    ''' 
+    ax = plot_importance(model)
+    txt_yticklabels = list(ax.get_yticklabels())
+    if txt_yticklabels[0].get_text()[1:].isdigit():
+        nmapcol = dict(zip(range(len(cols)), cols))
+        _yticklabels = [txt_yticklabels[i].get_text().lstrip('f') for i in range(len(txt_yticklabels))]
+        _yticklabels = [nmapcol[int(i)] for i in _yticklabels] 
+        ax.set_yticklabels(_yticklabels)
+    ax.figure.tight_layout()
+    ax.figure.savefig('plots/'+string+'_plot_importance.png') 
+    plt.clf()
+
 def execute():
     '''
     main
@@ -440,6 +455,8 @@ def execute():
             logging.info('---------validation result from %s', string)
             pred, pred_prob = bst_prediction(optmodel, Vmatrix)
             get_evaluation(string, y_val, pred, pred_prob, plot_cnf, gridsearch)
+            ax = plot_importance_w_featname(string, cols, optmodel)
+            
             predict_w_optmodel(optmodel, string, others)
         else:
             optmodel = cv(X_t, y_t, X_val, y_val)
