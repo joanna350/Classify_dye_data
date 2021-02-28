@@ -3,9 +3,12 @@ script that handles preprocessing, training, predicting and evaluation
 over a representative set of classifier models 
 with sufficient number of metrics
 '''
+import os
 import time
+import datetime
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from math import log
 import xgboost as xgb
 from xgboost import DMatrix
@@ -163,8 +166,6 @@ def preprocess(others, category):
 #keep batch.id <> index match, unless keeping batch.id in training retains perf
     if others:
         df = df.dropna() # results in 13596, 47 for training
-    logging.info(df.dtypes) 
-    logging.info(df.shape)
     cols = list(df.columns)
     if category == 0:
         cols.remove('has.passed')
@@ -300,7 +301,7 @@ def get_prediction(model, test_x):
     return y_pred, pred_prob
 
 
-def get_evaluation(string, true, pred, pred_prob, plot_cnf):
+def get_evaluation(string, true, pred, pred_prob, plot_cnf, bst):
 
     '''
     :type Str string: logging purpose
@@ -317,12 +318,14 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
     prec = TP/(TP+FP)
     tpr =  TP/(TP+FN)
     fpr = FP/(FP+TN)
-    fnr = FN/(FN+TN)
+    fnr = FN/(FN+TP)
     logging.info('accuracy: %.3f\nprecision: %.3f\ntrue positive rate: %.3f\nfalse positive rate: %.3f\nfalse negative rate: %.3f', accu, prec, tpr, fpr, fnr)
+    if bst == 0:
+        pred_prob = pred_prob[:,1]
     #roc
-    roc_auc= roc_auc_score(true, pred_prob[:,1])
+    roc_auc= roc_auc_score(true, pred_prob)
     logging.info('ROC AUC %.3f' %roc_auc)
-    fprs, tprs, thresh = roc_curve(true, pred_prob[:,1])
+    fprs, tprs, thresh = roc_curve(true, pred_prob)
     plt.plot([0,1],[0,1], 'k--')
     plt.plot(fprs, tprs, color='red',
             lw=2, label='ROC curve (area=%0.2f)' %roc_auc)
@@ -333,12 +336,12 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
     plt.savefig('plots/'+string+'_ROC_curve.png')
     plt.clf()
     #pr-recall curve - although I balanced the data
-    pres, recs, _ = precision_recall_curve(true, pred_prob[:,1])    
+    pres, recs, _ = precision_recall_curve(true, pred_prob)    
     plt.plot(recs, pres, marker='.', label=string)
     plt.xlabel('recall')
     plt.ylabel('precision')
     plt.title(string + ' PR curve')
-    plt.savefig('plots/'+string+'_pr_curve.png')
+    plt.savefig('plots/' + string + '_pr_curve.png')
     plt.clf()
     if plot_cnf:
         class_labels = [False, True] #by default
@@ -346,18 +349,16 @@ def get_evaluation(string, true, pred, pred_prob, plot_cnf):
         tick_marks = np.arange(len(class_labels))
         plt.xticks(tick_marks, class_labels)
         plt.yticks(tick_marks, class_labels)
-
         #heatmap
         sns.heatmap(pd.DataFrame(cnf_matrix), annot=True, fmt='g')
-
         ax.xaxis.set_label_position('top')
-
         plt.tight_layout()
         plt.title('Confusion matrix', y=1.1)
         plt.xlabel('Predicted label')
         plt.ylabel('Actual label')
-        plt.savefig('plots/confusion_matrix.png')
+        plt.savefig('plots/' + string + '_confusion_matrix.png')
         plt.clf()
+
 
 def cv(X_t, y_t, X_test, y_test):
     '''
@@ -367,35 +368,59 @@ def cv(X_t, y_t, X_test, y_test):
     dtrain = DMatrix(X_t, label=y_t)
     dtest = DMatrix(X_test, label=y_test)
     params={"objective":"binary:logistic",
-            'max_depth': 5, 
-            'alpha': 10,
-            'eval_metric': 'auc'}
-    numbr = 999
+            'max_depth': 9,
+            'min_child_weight': 2,
+            'subsample': 0.8,
+            'eta': 0.1,
+            'alpha': 0.2,
+            'lambda': 0.2,
+            'eval_metric':'auc'}
+    num_boost_round = 313 #model.best_iteration + 1
     #fit
     model = xgb.train(params,
               dtrain,
-              num_boost_round=numbr,
-              evals=[(dtest,'Test')],
-              early_stopping_rounds=10)
+              num_boost_round=num_boost_round,
+              evals=[(dtest,'Test')])
+
+    return model
+
+    '''
     logging.info('best auc: %.2f with %f rounds', model.best_score, model.best_iteration+1)
-    results = xgb.cv(params,    
+    cv_results = xgb.cv(params,    
                  dtrain,
-                 num_boost_round=numbr,
+                 num_boost_round=num_boost_round,
                  seed=42,
                  nfold=4,
                  metrics={'auc'},
                  early_stopping_rounds=10)
 
-    logging.info(results)
+    logging.info(cv_results)
 
-#TODO: finetune hpp using xgb.cv
-def finetune():
-    '''
-    still requires some manual operations to find a range to finetune
+    gridsearch_params= [(lambda_, alpha) for lambda_ in [.5, .2, .1, .05] for alpha in [.2, .1, .05, .01, .005]] 
+    max_auc = 0
+    best_params = None
+    for lambda_, alpha in gridsearch_params:
+        logging.info('CV with lambda= {}, alpha={}'.format(lambda_, alpha))
+        params['lambda'] = lambda_
+        params['alpha'] = alpha
 
-    '''
-    pass
-
+        cv_results = xgb.cv(params,
+                            dtrain,
+                            num_boost_round=num_boost_round,
+                            seed=42,
+                            nfold=5,
+                            metrics={'auc'},
+                            early_stopping_rounds=10)
+        
+        mean_auc = cv_results['test-auc-mean'].max()
+        boost_rounds=cv_results['test-auc-mean'].argmax()
+        logging.info('\tAUC {} for {} rounds'.format(mean_auc, boost_rounds))
+        if mean_auc > max_auc:
+            max_auc = mean_auc
+            best_params = (lambda_, alpha)
+    logging.info('best params: {}, {}, AUC: {}'.format(best_params[0], best_params[1], max_auc))
+   ''' 
+    
 def execute():
     '''
     main
@@ -406,13 +431,26 @@ def execute():
     X, y = oversample(X, y)
     X_t, X_val, y_t, y_val = train_test_split(X, y, test_size= 0.25, random_state = 0)
     if gridsearch:
-        cv(X_t, y_t, X_val, y_val) 
+        string = 'finetuned.booster'
+        if Path(string).is_file():
+            logging.info('---------loading %s', string)
+            optmodel = xgb.Booster()
+            optmodel.load_model(string)
+            Vmatrix = DMatrix(X_val, label = y_val)
+            logging.info('---------validation result from %s', string)
+            pred, pred_prob = bst_prediction(optmodel, Vmatrix)
+            get_evaluation(string, y_val, pred, pred_prob, plot_cnf, gridsearch)
+            predict_w_optmodel(optmodel, string, others)
+        else:
+            optmodel = cv(X_t, y_t, X_val, y_val)
+            logging.info('--------saving %s', string)
+            optmodel.save_model(string)
     else:
         models = fit(others, cols, X_t, y_t, X_val, y_val)
         for flag, string, model in models:
             logging.info('model in point: %s', string)
             y_pred, pred_prob = get_prediction(model, X_val)
-            get_evaluation(string, y_val, y_pred, pred_prob, plot_cnf)
+            get_evaluation(string, y_val, y_pred, pred_prob, plot_cnf, gridsearch)
             if flag and not others:
                 logging.info('----------------real test returns per XGB')
                 X_test, batch_ids = preprocess(others, 1)
@@ -420,6 +458,39 @@ def execute():
                 out_df = pd.DataFrame(zip(batch_ids, pred, pred_prob[:,1]), columns=['batch.id', 'has.passed.prediction', 'has.passed.probability'])
                 logging.info('------------------done and saving')
                 out_df.to_csv('test.template.csv', index=False) 
+
+
+def bst_prediction(optmodel, Dmatrix):
+    '''
+    :type booster model: different API, different output shape
+    :type Dmatrix: input datatype optimized in efficiency
+    :rtype List[int]: 1/0 for pass/fail
+    :rtype List[int]: probability of pass
+    '''
+    pred_prob = optmodel.predict(Dmatrix)
+    pred = [1 if i > 0.5 else 0 for i in pred_prob]
+    return pred, pred_prob
+
+def predict_w_optmodel(optmodel, string, others):
+    '''
+    :type booster model: will be used to make the final prediction and save
+    :type Str string: description of the model in current operation
+    :type int others: equivalent to boolean for not running other model
+    '''
+    X_test, batch_ids = preprocess(others, 1)
+    dtest = DMatrix(X_test)   
+    logging.info('---------------real test prediction with %s', string)
+    pred, pred_prob = bst_prediction(optmodel, dtest)
+    opt_df = pd.DataFrame(zip(batch_ids, pred, pred_prob), columns=['batch.id', 'has.passed.prediction', 'has.passed.probability'])
+    logging.info('------------------saving the results at current timestamp')
+    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+    outdir = Path.cwd() / timestamp
+    if not outdir.is_dir():
+        os.mkdir(outdir)
+        opt_df.to_csv(outdir / 'test.template.csv', index=False)
+    else:
+        opt_df.to_csv(outdir / 'test.template.csv', index=False)
+
 
 if __name__ == '__main__':
     execute()

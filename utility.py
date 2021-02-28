@@ -43,7 +43,7 @@ def filedescription():
     :type None: 
     :rtype features: column names in training/testing csv files
     '''
-    df = pd.read_excel('FieldDescription.xlsx')
+    df = pd.read_excel('Field Description.xlsx')
     features = df['Column Name']
     features = features.tolist()
     for i in range(len(features)):
@@ -170,5 +170,5 @@ def describefailure():
 
 
 if __name__ == '__main__':
-    readin()
-    #filedescription()
+    #readin()
+    filedescription()

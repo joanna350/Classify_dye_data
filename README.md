@@ -29,6 +29,7 @@ python(version) -m pip(v) install --user -Iv '__package_name__==__version__'
 ### Command Line Interface
 
 * `./run.sh` prepares the directory structure for operation
+* `chmod u+x` first if sudo error occurs
 
 * To test the models:
 ```
@@ -41,24 +42,36 @@ python_v classifier.py arg1 arg2 arg3'
 * `plot_cnf`: arg1 (default 0) determines the plot of confusion matrix
 * `gridsearch`: arg2 (default 0) for hyperparameter tuning
 * `others`: arg3 (default 0) to run other models
-* Returns `test.template.csv` only when `others` == 0
+* Returns `test.template.csv` on the same directory only when `others` == 0 (based on xgbclassifier)
 
-### Directory structure (e.g. run default)
+* Returns `finetuned.model` on the same directory with `gridsearch` == 1
+* Returns `test.template.csv` under a directory with the current timestamp with `gridsearch` == 1 if `finetuned.model` is already saved
+
+### Directory structure 
+
+* Run in the sequence of returns. Optional `plot_cnf` == 1 at the last step
 
 ```
 |-- Model
 |   |-- run.sh
-|   |-- Readme.md
+|   |-- README.md
 |   |-- data
 |   |   |-- train.csv
 |   |   |-- train.out.csv
 |   |   |-- test.csv
-|   |-- File Description.xlsx
+|   |-- Field Description.xlsx
 |   |-- utility.py
 |   |-- classifier.py
 |   |-- test.template.csv
+|   |-- finetuned.booster
 |   |-- plots
 |   |   |--xgb_plot_importance.png
 |   |   |--xgbclassifier_pr_curve.png
-|   |   `--xgbclassifier_ROC_curve.png
+|   |   |--xgbclassifier_ROC_curve.png
+|   |   |--finetuned.booster_plot_importance.png
+|   |   |--finetuned.booster_pr_curve.png
+|   |   |--finetuned.booster_ROC_curve.png
+|   |   |--finetuned.booster_confusion_matrix.png
+|   |-- 2021-02-28 01/54/42
+|   |-- |-- test.template.csv
 ```
