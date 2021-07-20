@@ -1,4 +1,6 @@
-# XGBoost
+### Project Scope
+- Run classifiers on a real world data from a dye factory
+- XGBoost performs optimally, shap analysis to be done
 
 ### Environment
 ```
