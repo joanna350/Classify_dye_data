@@ -1,5 +1,8 @@
 ### Project Scope
 - Run classifiers on a real world data from a dye factory
+- Preprocess, train, evaluate over confusion matrix and ROC, PR curve
+- Analyse feature of importance based on different criteria
+- Export results over test data
 - XGBoost performs optimally, shap analysis to be done
 
 ### Environment
